@@ -21,7 +21,8 @@ import {ModalDismissReasons} from './modal-dismiss-reasons';
     'role': 'dialog',
     'tabindex': '-1',
     '(keyup.esc)': 'escKey($event)',
-    '(click)': 'backdropClick($event)',
+    '(mousedown)': 'backdropClick($event)',
+    '(touchstart)': 'backdropClick($event)',
     '[attr.aria-modal]': 'true',
     '[attr.aria-labelledby]': 'ariaLabelledBy',
   },
@@ -82,7 +83,9 @@ export class NgbModalWindow implements OnInit,
     } else {
       elementToFocus = body;
     }
-    elementToFocus.focus();
+    setTimeout(() => {
+      elementToFocus.focus();
+    }, 1);
     this._elWithFocus = null;
   }
 }
