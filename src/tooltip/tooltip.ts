@@ -17,7 +17,8 @@ import {
   ComponentFactoryResolver,
   NgZone,
   ViewEncapsulation,
-  ChangeDetectorRef
+  ChangeDetectorRef,
+  ApplicationRef
 } from '@angular/core';
 import {DOCUMENT} from '@angular/common';
 
@@ -71,6 +72,8 @@ export class NgbTooltip implements OnInit, OnDestroy {
    * Accepts an array of strings or a string with space separated possible values.
    *
    * The default order of preference is `"auto"` (same as the sequence above).
+   *
+   * Please see the [positioning overview](#/positioning) for more details.
    */
   @Input() placement: PlacementArray;
 
@@ -136,7 +139,8 @@ export class NgbTooltip implements OnInit, OnDestroy {
   constructor(
       private _elementRef: ElementRef<HTMLElement>, private _renderer: Renderer2, injector: Injector,
       componentFactoryResolver: ComponentFactoryResolver, viewContainerRef: ViewContainerRef, config: NgbTooltipConfig,
-      private _ngZone: NgZone, @Inject(DOCUMENT) private _document: any, private _changeDetector: ChangeDetectorRef) {
+      private _ngZone: NgZone, @Inject(DOCUMENT) private _document: any, private _changeDetector: ChangeDetectorRef,
+      private _applicationRef: ApplicationRef) {
     this.autoClose = config.autoClose;
     this.placement = config.placement;
     this.triggers = config.triggers;
@@ -146,7 +150,7 @@ export class NgbTooltip implements OnInit, OnDestroy {
     this.openDelay = config.openDelay;
     this.closeDelay = config.closeDelay;
     this._popupService = new PopupService<NgbTooltipWindow>(
-        NgbTooltipWindow, injector, viewContainerRef, _renderer, componentFactoryResolver);
+        NgbTooltipWindow, injector, viewContainerRef, _renderer, componentFactoryResolver, _applicationRef);
 
     this._zoneSubscription = _ngZone.onStable.subscribe(() => {
       if (this._windowRef) {

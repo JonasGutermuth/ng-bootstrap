@@ -14,7 +14,8 @@ import {
   Output,
   QueryList,
   Renderer2,
-  SimpleChanges
+  SimpleChanges,
+  Optional
 } from '@angular/core';
 import {DOCUMENT} from '@angular/common';
 import {Subject, Subscription} from 'rxjs';
@@ -24,6 +25,10 @@ import {ngbAutoClose} from '../util/autoclose';
 import {Key} from '../util/key';
 
 import {NgbDropdownConfig} from './dropdown-config';
+
+@Directive({selector: '.navbar'})
+export class NgbNavbar {
+}
 
 /**
  * A directive you should put put on a dropdown item to enable keyboard navigation.
@@ -57,7 +62,9 @@ export class NgbDropdownItem {
     '(keydown.ArrowUp)': 'dropdown.onKeyDown($event)',
     '(keydown.ArrowDown)': 'dropdown.onKeyDown($event)',
     '(keydown.Home)': 'dropdown.onKeyDown($event)',
-    '(keydown.End)': 'dropdown.onKeyDown($event)'
+    '(keydown.End)': 'dropdown.onKeyDown($event)',
+    '(keydown.Enter)': 'dropdown.onKeyDown($event)',
+    '(keydown.Space)': 'dropdown.onKeyDown($event)'
   }
 })
 export class NgbDropdownMenu {
@@ -158,16 +165,23 @@ export class NgbDropdown implements OnInit, OnDestroy {
    * Accepts an array of strings or a string with space separated possible values.
    *
    * The default order of preference is `"bottom-left bottom-right top-left top-right"`
+   *
+   * Please see the [positioning overview](#/positioning) for more details.
    */
   @Input() placement: PlacementArray;
 
   /**
-   * A selector specifying the element the dropdown should be appended to.
-   * Currently only supports "body".
-   *
-   * @since 4.1.0
-   */
+  * A selector specifying the element the dropdown should be appended to.
+  * Currently only supports "body".
+  *
+  * @since 4.1.0
+  */
   @Input() container: null | 'body';
+
+  /**
+   * Enable or disable the dynamic positioning
+   */
+  @Input() display: 'dynamic' | 'static';
 
   /**
    * An event fired when the dropdown is opened or closed.
@@ -180,10 +194,14 @@ export class NgbDropdown implements OnInit, OnDestroy {
 
   constructor(
       private _changeDetector: ChangeDetectorRef, config: NgbDropdownConfig, @Inject(DOCUMENT) private _document: any,
-      private _ngZone: NgZone, private _elementRef: ElementRef<HTMLElement>, private _renderer: Renderer2) {
+      private _ngZone: NgZone, private _elementRef: ElementRef<HTMLElement>, private _renderer: Renderer2,
+      @Optional() ngbNavbar: NgbNavbar) {
     this.placement = config.placement;
     this.container = config.container;
     this.autoClose = config.autoClose;
+
+    this.display = ngbNavbar ? 'static' : 'dynamic';
+
     this._zoneSubscription = _ngZone.onStable.subscribe(() => { this._positionMenu(); });
   }
 
@@ -260,6 +278,8 @@ export class NgbDropdown implements OnInit, OnDestroy {
   }
 
   onKeyDown(event: KeyboardEvent) {
+    // tslint:disable-next-line:deprecation
+    const key = event.which;
     const itemElements = this._getMenuElements();
 
     let position = -1;
@@ -277,12 +297,20 @@ export class NgbDropdown implements OnInit, OnDestroy {
       });
     }
 
+    // closing on Enter / Space
+    if (key === Key.Space || key === Key.Enter) {
+      if (isEventFromItems && (this.autoClose === true || this.autoClose === 'inside')) {
+        this.close();
+      }
+      return;
+    }
+
+    // opening / navigating
     if (isEventFromToggle || isEventFromItems) {
       this.open();
 
       if (itemElements.length) {
-        // tslint:disable-next-line:deprecation
-        switch (event.which) {
+        switch (key) {
           case Key.ArrowDown:
             position = Math.min(position + 1, itemElements.length - 1);
             break;
@@ -322,10 +350,16 @@ export class NgbDropdown implements OnInit, OnDestroy {
   private _positionMenu() {
     if (this.isOpen() && this._menu) {
       this._applyPlacementClasses(
-          positionElements(
-              this._anchor.anchorEl, this._bodyContainer || this._menuElement.nativeElement, this.placement,
-              this.container === 'body'));
+          this.display === 'dynamic' ?
+              positionElements(
+                  this._anchor.anchorEl, this._bodyContainer || this._menuElement.nativeElement, this.placement,
+                  this.container === 'body') :
+              this._getFirstPlacement(this.placement));
     }
+  }
+
+  private _getFirstPlacement(placement: PlacementArray): Placement {
+    return Array.isArray(placement) ? placement[0] : placement.split(' ')[0] as Placement;
   }
 
   private _resetContainer() {
@@ -364,7 +398,7 @@ export class NgbDropdown implements OnInit, OnDestroy {
   private _applyPlacementClasses(placement?: Placement) {
     if (this._menu) {
       if (!placement) {
-        placement = Array.isArray(this.placement) ? this.placement[0] : this.placement.split(' ')[0] as Placement;
+        placement = this._getFirstPlacement(this.placement);
       }
 
       const renderer = this._renderer;
